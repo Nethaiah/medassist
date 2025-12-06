@@ -143,6 +143,15 @@ export async function updateConsultationAnalysis(
   try {
     const supabase = await createClient(cookies());
     
+    // Get current user and old analysis for audit trail
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const { data: oldRecord } = await supabase
+      .from('analysis_records')
+      .select('ai_analysis')
+      .eq('id', consultationId)
+      .single();
+    
     const { error } = await supabase
       .from('analysis_records')
       .update({ 
@@ -154,6 +163,32 @@ export async function updateConsultationAnalysis(
     if (error) {
       console.error('Error updating consultation analysis:', error);
       return false;
+    }
+
+    // Log audit event for medical compliance
+    if (user && oldRecord) {
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('role, full_name, email')
+        .eq('id', user.id)
+        .single();
+
+      const doctorName = userProfile?.full_name || user.email || 'Unknown Doctor';
+      
+      await supabase.from('audit_logs').insert({
+        consultation_id: consultationId,
+        user_id: user.id,
+        user_email: user.email || userProfile?.email || 'unknown',
+        user_role: userProfile?.role || 'doctor',
+        action: 'analysis_edited',
+        action_details: `${doctorName} reviewed and modified the treatment plan`,
+        metadata: {
+          field_changed: 'ai_analysis',
+          previous_summary: oldRecord.ai_analysis?.summary?.primary_complaint,
+          new_summary: updatedAnalysis?.summary?.primary_complaint,
+          timestamp: new Date().toISOString()
+        }
+      });
     }
 
     return true;

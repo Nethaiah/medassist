@@ -12,6 +12,8 @@ import { SchedulingModal } from '@/components/scheduling-modal';
 import { Header } from '@/components/header';
 import { Modal } from '@/components/ui/modal';
 import { Loader2, Activity } from 'lucide-react';
+import { useAutomaticReminders } from '@/hooks/useAutomaticReminders';
+import { AlertDialog } from '@/components/ui/alert-dialog';
 import type { PatientData, ClinicalResponse, ConsultationRecord, Doctor } from '@/lib/types';
 import { 
   generateTreatmentPlan, 
@@ -27,6 +29,10 @@ type DashboardView = 'loading' | 'auth' | 'doctor' | 'patient' | 'analysis_resul
 
 export default function Home() {
   const supabase = createClient()
+  
+  // Enable automatic reminder checking (once per day)
+  useAutomaticReminders();
+  
   const [view, setView] = useState<DashboardView>('loading');
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<'patient' | 'doctor'>('patient');
@@ -41,7 +47,7 @@ export default function Home() {
     history: '',
     medications: '',
     allergies: '',
-    vitals: { bp: '', hr: '', temp: '', rr: '' }
+    vitals: { bp: '', hr: '', temp: '' }
   });
 
   const [analysisResult, setAnalysisResult] = useState<ClinicalResponse | null>(null);
@@ -49,7 +55,8 @@ export default function Home() {
   const [selectedConsultation, setSelectedConsultation] = useState<ConsultationRecord | null>(null);
   const [viewConsultationModal, setViewConsultationModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [consultationToPay, setConsultationToPay] = useState('');
+  const [consultationToPay, setConsultationToPay] = useState<string | null>(null);
+  const [alertDialog, setAlertDialog] = useState<{ isOpen: boolean; type: 'success' | 'error' | 'warning' | 'info'; title?: string; message: string }>({ isOpen: false, type: 'info', message: '' });
   const [doctorConsultations, setDoctorConsultations] = useState<ConsultationRecord[]>([]);
   
   // Scheduling state
@@ -60,6 +67,9 @@ export default function Home() {
     scheduledAt: Date;
     notes: string;
   } | null>(null);
+  
+  // Current consultation ID (for freshly generated analysis)
+  const [currentConsultationId, setCurrentConsultationId] = useState<string | null>(null);
 
   useEffect(() => {
     // 1. Check active session on load
@@ -153,6 +163,12 @@ export default function Home() {
   };
 
   const handlePaymentComplete = async () => {
+    // Guard clause: ensure consultationToPay is not null
+    if (!consultationToPay) {
+      setAlertDialog({ isOpen: true, type: 'error', message: 'Invalid consultation ID.' });
+      return;
+    }
+    
     // Update consultation status to 'paid'
     const success = await updateConsultationStatus(consultationToPay, 'paid');
     
@@ -167,22 +183,31 @@ export default function Home() {
       );
       
       if (scheduleId) {
-        // Reload consultations
+        // Immediately update the selected consultation status in UI
+        if (selectedConsultation && selectedConsultation.id === consultationToPay) {
+          setSelectedConsultation({
+            ...selectedConsultation,
+            status: 'paid'
+          });
+        }
+        
+        // Reload consultations in background
         if (user) {
           await loadConsultations(user.id);
         }
-        // Reload doctor consultations
         await loadDoctorConsultations();
         
+        // Close payment modal (user can manually close consultation modal)
         setShowPaymentModal(false);
         setConsultationToPay('');
         setScheduleData(null);
-        alert('Payment successful! Your consultation has been scheduled.');
       } else {
-        alert('Payment successful but scheduling failed. Please contact support.');
+        setShowPaymentModal(false);
+        setAlertDialog({ isOpen: true, type: 'error', message: 'Payment successful but scheduling failed. Please contact support.' });
       }
     } else {
-      alert('Payment update failed. Please try again.');
+      setShowPaymentModal(false);
+      setAlertDialog({ isOpen: true, type: 'error', message: 'Payment update failed. Please try again.' });
     }
   };
 
@@ -190,16 +215,26 @@ export default function Home() {
     const success = await updateConsultationAnalysis(consultationId, updatedData);
     
     if (success) {
-      // Reload consultations
+      // Reload consultations to get updated status
       if (userRole === 'doctor') {
         await loadDoctorConsultations();
       } else if (user) {
         await loadConsultations(user.id);
       }
-      alert('Consultation updated successfully!');
-      setViewConsultationModal(false);
+      
+      // Update the selected consultation with new status
+      if (selectedConsultation) {
+        setSelectedConsultation({
+          ...selectedConsultation,
+          aiAnalysis: updatedData,
+          status: 'completed' // Mark as completed
+        });
+      }
+      
+      setAlertDialog({ isOpen: true, type: 'success', message: 'Analysis reviewed and marked as complete!' });
+      // Don't close modal - let doctor see the completed status
     } else {
-      alert('Failed to update consultation. Please try again.');
+      setAlertDialog({ isOpen: true, type: 'error', message: 'Failed to update consultation. Please try again.' });
     }
   };
 
@@ -215,18 +250,30 @@ export default function Home() {
       const result = await generateTreatmentPlan(patientData, user.id, user.email);
       
       if (result) {
-        setAnalysisResult(result.analysis);
         setShowPatientForm(false);
-        setView('analysis_result');
-        // Reload consultations to show the new one
+        // Reload consultations
         await loadConsultations(user.id);
+        
+        // Auto-open the newly created consultation
+        const newConsultation: ConsultationRecord = {
+          id: result.consultationId,
+          patientId: user.id,
+          patientName: user.email || 'Patient',
+          timestamp: Date.now(),
+          status: 'pending_payment',
+          patientData: patientData,
+          aiAnalysis: result.analysis
+        };
+        
+        setSelectedConsultation(newConsultation);
+        setViewConsultationModal(true);
       } else {
-        alert('Failed to generate analysis. Please try again.');
+        setAlertDialog({ isOpen: true, type: 'error', message: 'Failed to generate analysis. Please try again.' });
       }
 
     } catch (error) {
       console.error('Error submitting form:', error);
-      alert('Error processing form. Please try again.');
+      setAlertDialog({ isOpen: true, type: 'error', message: 'Error processing form. Please try again.' });
     } finally {
       setIsAnalyzing(false);
     }
@@ -326,16 +373,21 @@ export default function Home() {
           maxWidth="max-w-7xl"
         >
           {selectedConsultation && (
-             <TreatmentPlan
-              data={selectedConsultation.aiAnalysis}
-              onBack={() => setViewConsultationModal(false)}
-              showConsultAction={selectedConsultation.status === 'pending_payment'}
-              onConsult={() => handleShowPayment(selectedConsultation.id)}
-              consultationPaid={selectedConsultation.status === 'paid'}
-              isDialogMode={true}
-              isEditable={userRole === 'doctor'}
-              onSave={(updatedData) => handleSaveConsultation(selectedConsultation.id, updatedData)}
-            />
+            <>
+              {console.log('Selected consultation:', selectedConsultation)}
+              {console.log('Status:', selectedConsultation.status)}
+              <TreatmentPlan
+                data={selectedConsultation.aiAnalysis}
+                onBack={() => setViewConsultationModal(false)}
+                showConsultAction={selectedConsultation.status === 'pending_payment'}
+                onConsult={() => handleShowPayment(selectedConsultation.id)}
+                consultationPaid={selectedConsultation.status === 'paid'}
+                isDialogMode={true}
+                isEditable={userRole === 'doctor'}
+                onSave={(updatedData) => handleSaveConsultation(selectedConsultation.id, updatedData)}
+                consultation={{ id: selectedConsultation.id, status: selectedConsultation.status }}
+              />
+            </>
           )}
         </Modal>
 
@@ -355,7 +407,16 @@ export default function Home() {
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
           onPaymentComplete={handlePaymentComplete}
-          consultationId={consultationToPay}
+          consultationId={consultationToPay || ''}
+        />
+        
+        {/* Custom Alert Dialog */}
+        <AlertDialog
+          isOpen={alertDialog.isOpen}
+          onClose={() => setAlertDialog({ ...alertDialog, isOpen: false })}
+          type={alertDialog.type}
+          title={alertDialog.title}
+          message={alertDialog.message}
         />
       </div>
     );
@@ -381,7 +442,7 @@ export default function Home() {
               if (recentConsultation) {
                 handleShowPayment(recentConsultation.id);
               } else {
-                alert('Consultation ID not found');
+                setAlertDialog({ isOpen: true, type: 'error', message: 'Consultation ID not found' });
               }
             }}
           />

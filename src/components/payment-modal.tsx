@@ -24,12 +24,11 @@ export const PaymentModal: React.FC<Props> = ({ isOpen, onClose, onPaymentComple
     
     setPaymentComplete(true);
     
-    // Wait a bit to show success message
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
+    // Call payment complete to update backend
     onPaymentComplete();
+    
     setIsPaying(false);
-    setPaymentComplete(false);
+    // Don't auto-close - let user close manually by clicking X
   };
 
   return (

@@ -72,7 +72,14 @@ export const DoctorDashboard: React.FC<Props> = ({ consultations, onViewCase, on
                       {record.patientName.charAt(0)}
                    </div>
                    <div>
-                      <h4 className="font-bold text-slate-800 group-hover:text-indigo-600 transition">{record.patientName}</h4>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-bold text-slate-800 group-hover:text-indigo-600 transition">{record.patientName}</h4>
+                        {record.status === 'completed' ? (
+                          <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">Reviewed</span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded-full font-medium">Pending</span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2 text-xs text-slate-500">
                          <Clock className="w-3 h-3" />
                          {new Date(record.timestamp).toLocaleDateString()} {new Date(record.timestamp).toLocaleTimeString()}

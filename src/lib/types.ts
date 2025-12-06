@@ -57,7 +57,6 @@ export interface PatientData {
     bp: string;
     hr: string;
     temp: string;
-    rr: string;
   };
 }
 

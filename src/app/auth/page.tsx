@@ -15,6 +15,7 @@ export type UserRole = 'patient' | 'doctor';
 const authSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+  fullName: z.string().min(2, 'Please enter your full name').optional(),
 });
 
 type AuthFormData = z.infer<typeof authSchema>;
@@ -52,14 +53,17 @@ export const Auth: React.FC<Props> = ({ onLogin }) => {
         
         if (signUpError) throw signUpError;
         
-        // Create profile in database
+        // Create profile in database with full name
         if (signUpData.user) {
+          const fullName = data.fullName || data.email.split('@')[0];
+          
           const { error: profileError } = await supabase
             .from('profiles')
             .insert({
               id: signUpData.user.id,
               email: data.email,
               role: role,
+              full_name: role === 'doctor' ? `Dr. ${fullName}` : fullName,
             });
           
           if (profileError) {
@@ -97,7 +101,7 @@ export const Auth: React.FC<Props> = ({ onLogin }) => {
                <Activity className="w-8 h-8 text-white" />
            </div>
            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-blue-700 to-indigo-700">
-              MedAssist Pro
+              MedAssist
            </h1>
         </div>
         <p className="text-slate-500">Clinical AI Decision Support System</p>
@@ -139,6 +143,23 @@ export const Auth: React.FC<Props> = ({ onLogin }) => {
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Full Name Field - Only shown during signup */}
+          {isSignUp && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Full Name {role === 'doctor' && <span className="text-xs text-slate-500">(will show as "Dr. YourName")</span>}
+              </label>
+              <input
+                {...register('fullName')}
+                type="text"
+                className={`w-full p-3 bg-slate-50 border rounded-lg focus:ring-2 outline-none transition text-black
+                  ${errors.fullName ? 'border-red-500 focus:ring-red-200' : 'border-slate-200 focus:ring-blue-500'}`}
+                placeholder={role === 'patient' ? "John Doe" : "Smith"}
+              />
+              {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName.message}</p>}
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
             <input
@@ -188,13 +209,6 @@ export const Auth: React.FC<Props> = ({ onLogin }) => {
           >
             {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
           </button>
-        </div>
-
-        <div className="mt-6 flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
-           <ShieldCheck className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-           <p className="text-xs text-slate-500 leading-relaxed">
-             <strong>Secure Login:</strong> Authentication is handled via Supabase. Passwords are encrypted.
-           </p>
         </div>
       </div>
     </div>

@@ -15,6 +15,7 @@ interface Props {
   isDialogMode?: boolean; // New prop to style for dialog
   isEditable?: boolean; // New prop for doctor editing
   onSave?: (updatedData: ClinicalResponse) => void; // Callback when saving edits
+  consultation?: { id: string; status?: string }; // For audit trail and status check
 }
 
 export const TreatmentPlan: React.FC<Props> = ({ 
@@ -25,7 +26,8 @@ export const TreatmentPlan: React.FC<Props> = ({
   consultationPaid = false,
   isDialogMode = false,
   isEditable = false,
-  onSave
+  onSave,
+  consultation
 }) => {
   const supabase = createClient();
   const [patientMode, setPatientMode] = useState(false);
@@ -102,15 +104,24 @@ export const TreatmentPlan: React.FC<Props> = ({
                     Save Changes
                   </button>
                 </div>
-              ) : (
-                <button 
-                  onClick={() => setEditMode(true)}
-                  className="flex items-center gap-2 text-sm font-medium text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-200 hover:bg-indigo-100 transition"
-                >
-                  <Edit className="w-4 h-4" />
-                  Edit Analysis
-                </button>
-              )
+                ) : (
+                  // Debug: log the status to see what's happening
+                  console.log('Consultation status:', consultation?.status),
+                  consultation?.status === 'completed' ? (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg border border-green-200">
+                      <CheckCircle className="w-4 h-4" />
+                      <span className="text-sm font-medium">Review Completed</span>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => setEditMode(true)}
+                      className="flex items-center gap-2 text-sm font-medium text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-200 hover:bg-indigo-100 transition"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Edit Analysis
+                    </button>
+                  )
+                )
             )}
             {/* Patient Mode Toggle */}
             <button 
@@ -215,7 +226,7 @@ export const TreatmentPlan: React.FC<Props> = ({
               {displayData.safety_analysis.contraindications.length > 0 && (
                 <div className="mb-3 bg-white rounded-lg p-3 border border-red-200">
                   <p className="font-semibold text-red-800 text-sm mb-1 flex items-center gap-2">
-                    <ShieldAlert className="w-4 h-4" />
+                    <ShieldAlert className="w-5 h-5" />
                     Contraindications Detected:
                   </p>
                   <ul className="list-disc list-inside text-sm text-red-900 space-y-1">
@@ -236,7 +247,7 @@ export const TreatmentPlan: React.FC<Props> = ({
                 <div className="bg-yellow-50 border border-yellow-300 rounded-lg px-4 py-3 mt-2">
                   <p className="text-sm font-bold text-yellow-900 flex items-center gap-2">
                     <AlertTriangle className="w-5 h-5" />
-                    ⚠️ LOW CONFIDENCE - Specialist consultation strongly recommended
+                    LOW CONFIDENCE - Specialist consultation strongly recommended
                   </p>
                   <p className="text-xs text-yellow-800 mt-1">
                     Multiple safety concerns detected. Consider referring to specialist before finalizing treatment plan.

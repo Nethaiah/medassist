@@ -26,7 +26,7 @@ export const PatientDashboard: React.FC<Props> = ({ consultations, onNewCase, on
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
           <h3 className="font-bold text-slate-700 flex items-center gap-2">
             <Activity className="w-4 h-4 text-blue-600" /> Previous Consultations
@@ -73,7 +73,13 @@ export const PatientDashboard: React.FC<Props> = ({ consultations, onNewCase, on
                       </h4>
                       <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(record.timestamp).toLocaleDateString()}</span>
-                         <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 capitalize">{record.status === 'pending_payment' ? 'Draft' : record.status}</span>
+                         {record.status === 'pending_payment' ? (
+                           <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">Draft</span>
+                         ) : record.status === 'paid' ? (
+                           <span className="bg-blue-100 px-2 py-0.5 rounded text-blue-700">Paid</span>
+                         ) : (
+                           <span className="bg-green-100 px-2 py-0.5 rounded text-green-700">Reviewed by Doctor</span>
+                         )}
                       </div>
                    </div>
                 </div>
