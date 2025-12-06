@@ -230,12 +230,9 @@ export default function Home() {
           status: 'completed' // Mark as completed
         });
       }
-      
-      setAlertDialog({ isOpen: true, type: 'success', message: 'Analysis reviewed and marked as complete!' });
+
       // Don't close modal - let doctor see the completed status
-    } else {
-      setAlertDialog({ isOpen: true, type: 'error', message: 'Failed to update consultation. Please try again.' });
-    }
+    } 
   };
 
   const handleLogout = async () => {

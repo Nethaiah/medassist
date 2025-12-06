@@ -55,6 +55,12 @@ export const TreatmentPlan: React.FC<Props> = ({
   }, []);
 
   const handleSave = () => {
+    // Prevent editing completed consultations
+    if (consultation?.status === 'completed') {
+      console.warn('Cannot edit completed consultation');
+      return;
+    }
+    
     if (onSave) {
       onSave(editedData);
     }
