@@ -4,6 +4,7 @@ import { Activity, LogOut, User, Stethoscope, UserCircle } from 'lucide-react';
 interface HeaderProps {
   user?: {
     email: string;
+    full_name?: string;
     role?: 'patient' | 'doctor';
   } | null;
   onLogout?: () => void;
@@ -21,7 +22,7 @@ export const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
             </div>
             <div>
               <h1 className="text-xl font-bold bg-linear-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
-                MedAssist Pro
+                MedAssist
               </h1>
               <p className="text-xs text-slate-500 hidden sm:block">Clinical AI Decision Support</p>
             </div>
@@ -37,7 +38,9 @@ export const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
                   <UserCircle className="w-5 h-5 text-blue-600" />
                 )}
                 <div className="text-sm">
-                  <div className="font-medium text-slate-800">{user.email}</div>
+                  <div className="font-medium text-slate-800">
+                    {user.role === 'doctor' && user.full_name ? `Dr. ${user.full_name}` : (user.full_name || user.email)}
+                  </div>
                   <div className="text-xs text-slate-500 capitalize">{user.role || 'User'}</div>
                 </div>
               </div>

@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MedAssist
 
-## Getting Started
+An intelligent, full-stack healthcare platform designed to bridge the gap between patients and medical professionals. By integrating AI-driven clinical analysis with the official FDA database, MedAssist streamlines the consultation process, enhances patient safety, and empowers doctors with data-driven insights.
 
-First, run the development server:
+## 🎯 Core Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Role-Based Dashboards**: Distinct, secure interfaces for both Patients and Doctors to manage their health data and schedules.
+- **AI-Powered Clinical Analysis**: Utilizes Google's Gemini AI to analyze patient intake forms (symptoms, vitals, medical history, allergies) and generate comprehensive preliminary treatment plans.
+- **OpenFDA Integration for Patient Safety**: 
+  - **Drug Interaction Checker**: Automatically flags potential interactions between newly prescribed medications and a patient's current drug regimen.
+  - **Contraindication & Dosage Validation**: Checks for drug contraindications based on patient conditions and validates dosages using real-time OpenFDA data.
+  - **Adverse Events Tracking**: Pulls historical adverse event reports for specific medications.
+- **End-to-End Consultation Workflow**: Handles everything from patient symptom submission and AI analysis to doctor scheduling and secure payments.
+- **Scheduling & Notifications**: Built-in scheduling system with automated email reminders to keep patients and doctors aligned on upcoming appointments.
+- **Audit Trails & Security**: Maintains strict audit logs for any modifications made to a consultation or treatment plan.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 💻 Technology Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Frontend**: Next.js 16 (App Router), React 19, Tailwind CSS, Lucide React, Recharts
+- **Backend / API**: Next.js Server Actions
+- **Database & Authentication**: Supabase (PostgreSQL, Row Level Security, SSR Auth)
+- **AI Integration**: Google GenAI SDK
+- **External APIs**: OpenFDA API
+- **Forms & Validation**: React Hook Form, Zod
+- **Email/Notifications**: MailerSend, Nodemailer
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🚀 Getting Started
 
-## Learn More
+### Prerequisites
 
-To learn more about Next.js, take a look at the following resources:
+- Node.js 18+ 
+- A Supabase project (for Authentication and Database)
+- Google Gemini API Key
+- MailerSend API Key (optional, for email notifications)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Installation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Clone the repository and navigate into the project directory.
 
-## Deploy on Vercel
+2. Install dependencies:
+   ```bash
+   npm install
+   # or
+   yarn install
+   # or
+   pnpm install
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. Set up your environment variables. Create a `.env` or `.env.local` file in the root directory and add the following:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   GEMINI_API_KEY=your_gemini_api_key
+   MAILERSEND_API_KEY=your_mailersend_api_key
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+5. Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
+
+## 🤝 Contributing
+
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/) if you want to contribute.
+
+## 📝 License
+
+This project is licensed under the MIT License.

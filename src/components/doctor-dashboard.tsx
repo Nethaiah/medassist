@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { ConsultationRecord } from '@/lib/types';
 import { RiskBadge } from './ui/risk-badge';
-import { Clock, ChevronRight, Search, FileText, CheckCircle, ChevronDown, ChevronUp, AlertTriangle, Activity } from 'lucide-react';
+import { Clock, ChevronRight, Search, FileText, CheckCircle, ChevronDown, ChevronUp, AlertTriangle, Activity, ThumbsUp } from 'lucide-react';
 
 interface Props {
   consultations: ConsultationRecord[];
   onViewCase: (record: ConsultationRecord) => void;
+  onApproveCase: (consultationId: string) => void;
   onLogout: () => void;
   doctorName: string;
 }
 
-export const DoctorDashboard: React.FC<Props> = ({ consultations, onViewCase, onLogout, doctorName }) => {
+export const DoctorDashboard: React.FC<Props> = ({ consultations, onViewCase, onApproveCase, onLogout, doctorName }) => {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     high: true,
     medium: true,
@@ -33,37 +34,59 @@ export const DoctorDashboard: React.FC<Props> = ({ consultations, onViewCase, on
 
   const ConsultationCard = ({ record, isPriority = true }: { record: ConsultationRecord; isPriority?: boolean }) => (
     <div 
-      onClick={() => onViewCase(record)}
-      className="p-4 hover:bg-slate-50 transition cursor-pointer flex items-center justify-between group border-l-4 border-transparent hover:border-indigo-400"
+      className="p-4 hover:bg-slate-50 transition group border-l-4 border-transparent hover:border-indigo-400"
     >
-      <div className="flex items-center gap-4 flex-1">
-        <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm shrink-0">
-          {record.patientName.charAt(0)}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-bold text-slate-800 group-hover:text-indigo-600 transition truncate">
-              {record.patientName}
-            </h4>
-            {!isPriority && (
-              <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium shrink-0">
-                Reviewed
+      <div className="flex items-center justify-between">
+        <div 
+          onClick={() => onViewCase(record)}
+          className="flex items-center gap-4 flex-1 cursor-pointer"
+        >
+          <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm shrink-0">
+            {record.patientName.charAt(0)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h4 className="font-bold text-slate-800 group-hover:text-indigo-600 transition truncate">
+                {record.patientName}
+              </h4>
+              {!isPriority && (
+                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium shrink-0">
+                  Reviewed
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3 text-xs text-slate-500">
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {new Date(record.timestamp).toLocaleDateString()}
               </span>
-            )}
-          </div>
-          <div className="flex items-center gap-3 text-xs text-slate-500">
-            <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {new Date(record.timestamp).toLocaleDateString()}
-            </span>
-            <span className="truncate max-w-[200px]">{record.patientData.complaint}</span>
+              <span className="truncate max-w-[200px]">{record.patientData.complaint}</span>
+            </div>
           </div>
         </div>
-      </div>
-      
-      <div className="flex items-center gap-4 shrink-0">
-        <RiskBadge level={record.aiAnalysis.summary.risk_level} />
-        <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-600" />
+        
+        <div className="flex items-center gap-3 shrink-0">
+          {isPriority && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onApproveCase(record.id);
+              }}
+              className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium text-sm flex items-center gap-1.5 transition shadow-sm hover:shadow-md active:scale-95"
+              title="Approve analysis without editing"
+            >
+              <ThumbsUp className="w-4 h-4" />
+              Approve
+            </button>
+          )}
+          <RiskBadge level={record.aiAnalysis.summary.risk_level} />
+          <button 
+            onClick={() => onViewCase(record)}
+            className="p-2 hover:bg-indigo-50 rounded-lg transition"
+          >
+            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-600" />
+          </button>
+        </div>
       </div>
     </div>
   );

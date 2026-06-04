@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { createClient } from '@/lib/supabase/client';
+import { AlertDialog } from '@/components/ui/alert-dialog';
 import { 
   Activity, ShieldCheck, Stethoscope, UserCircle, Lock, Loader2, AlertCircle 
 } from 'lucide-react';
@@ -30,6 +31,9 @@ export const Auth: React.FC<Props> = ({ onLogin }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [alertDialog, setAlertDialog] = useState<{ isOpen: boolean; message: string; type: 'success' | 'error' | 'warning' | 'info' }>(
+    { isOpen: false, message: '', type: 'info' }
+  );
 
   const { register, handleSubmit, formState: { errors } } = useForm<AuthFormData>({
     resolver: zodResolver(authSchema),
@@ -47,7 +51,7 @@ export const Auth: React.FC<Props> = ({ onLogin }) => {
           password: data.password,
           options: {
             data: { role: role },
-            emailRedirectTo: `${window.location.origin}/auth/callback`
+            emailRedirectTo: `${window.location.origin}/auth/callback` // Email verification disabled
           },
         });
         
@@ -63,7 +67,7 @@ export const Auth: React.FC<Props> = ({ onLogin }) => {
               id: signUpData.user.id,
               email: data.email,
               role: role,
-              full_name: role === 'doctor' ? `Dr. ${fullName}` : fullName,
+              full_name: fullName,
             });
           
           if (profileError) {
@@ -72,7 +76,12 @@ export const Auth: React.FC<Props> = ({ onLogin }) => {
           }
         }
         
-        alert('Account created! Check your email to confirm, then sign in.');
+        // Show success message and switch to sign in form
+        setAlertDialog({
+          isOpen: true,
+          message: 'Account created successfully! Please check your email for a verification link.',
+          type: 'success'
+        });
         setIsSignUp(false);
       } else {
         // --- SIGN IN ---
@@ -147,7 +156,7 @@ export const Auth: React.FC<Props> = ({ onLogin }) => {
           {isSignUp && (
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Full Name {role === 'doctor' && <span className="text-xs text-slate-500">(will show as "Dr. YourName")</span>}
+                Full Name {role === 'doctor' && <span className="text-xs text-slate-500">(UI will display as "Dr. YourName")</span>}
               </label>
               <input
                 {...register('fullName')}
@@ -211,6 +220,14 @@ export const Auth: React.FC<Props> = ({ onLogin }) => {
           </button>
         </div>
       </div>
+      
+      {/* Alert Dialog */}
+      <AlertDialog
+        isOpen={alertDialog.isOpen}
+        onClose={() => setAlertDialog({ ...alertDialog, isOpen: false })}
+        message={alertDialog.message}
+        type={alertDialog.type}
+      />
     </div>
   );
 };

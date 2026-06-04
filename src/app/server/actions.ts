@@ -96,6 +96,56 @@ export async function updateConsultationStatus(
       return false;
     }
 
+    // Log audit event when doctor approves (marks as completed)
+    if (newStatus === 'completed') {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          const { data: userProfile, error: profileError } = await supabase
+            .from('profiles')
+            .select('role, full_name, email')
+            .eq('id', user.id)
+            .single();
+
+          if (profileError) {
+            console.error('Error fetching user profile for audit (approve):', profileError);
+          }
+
+          const doctorName = userProfile?.full_name || user.email || 'Unknown Doctor';
+          
+          console.log('Creating audit log for approval:', {
+            consultation_id: consultationId,
+            user_id: user.id,
+            action: 'analysis_approved'
+          });
+
+          const { error: auditError } = await supabase.from('audit_logs').insert({
+            consultation_id: consultationId,
+            user_id: user.id,
+            user_email: user.email || userProfile?.email || 'unknown',
+            user_role: userProfile?.role || 'doctor',
+            action: 'consultation_approved',
+            action_details: `Dr. ${doctorName} reviewed and approved the AI-generated treatment plan without modifications`,
+            field_changed: 'status',
+            old_value: { status: 'paid' },
+            new_value: { status: 'completed' }
+          });
+
+          if (auditError) {
+            console.error('!!! AUDIT LOG INSERT FAILED (APPROVE) !!!', auditError);
+            console.error('Audit error details:', JSON.stringify(auditError, null, 2));
+          } else {
+            console.log('✅ Approval audit log created successfully');
+          }
+        } else {
+          console.warn('No user found for audit logging (approve)');
+        }
+      } catch (auditException) {
+        console.error('Exception while creating approval audit log:', auditException);
+      }
+    }
+
     return true;
   } catch (error) {
     console.error('Error in updateConsultationStatus:', error);
@@ -167,27 +217,65 @@ export async function updateConsultationAnalysis(
 
     // Log audit event for medical compliance
     if (user && oldRecord) {
-      const { data: userProfile } = await supabase
-        .from('profiles')
-        .select('role, full_name, email')
-        .eq('id', user.id)
-        .single();
+      try {
+        const { data: userProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role, full_name, email')
+          .eq('id', user.id)
+          .single();
 
-      const doctorName = userProfile?.full_name || user.email || 'Unknown Doctor';
-      
-      await supabase.from('audit_logs').insert({
-        consultation_id: consultationId,
-        user_id: user.id,
-        user_email: user.email || userProfile?.email || 'unknown',
-        user_role: userProfile?.role || 'doctor',
-        action: 'analysis_edited',
-        action_details: `${doctorName} reviewed and modified the treatment plan`,
-        metadata: {
-          field_changed: 'ai_analysis',
-          previous_summary: oldRecord.ai_analysis?.summary?.primary_complaint,
-          new_summary: updatedAnalysis?.summary?.primary_complaint,
-          timestamp: new Date().toISOString()
+        if (profileError) {
+          console.error('Error fetching user profile for audit:', profileError);
         }
+
+        const doctorName = userProfile?.full_name || user.email || 'Unknown Doctor';
+        
+        // Create summary of changes instead of storing entire objects
+        const oldSummary = {
+          primary_complaint: oldRecord.ai_analysis?.summary?.primary_complaint,
+          risk_level: oldRecord.ai_analysis?.summary?.risk_level,
+          medication_count: oldRecord.ai_analysis?.treatment_plan?.recommended_medications?.length || 0
+        };
+
+        const newSummary = {
+          primary_complaint: updatedAnalysis?.summary?.primary_complaint,
+          risk_level: updatedAnalysis?.summary?.risk_level,
+          medication_count: updatedAnalysis?.treatment_plan?.recommended_medications?.length || 0
+        };
+
+        console.log('Creating audit log entry:', {
+          consultation_id: consultationId,
+          user_id: user.id,
+          user_email: user.email || userProfile?.email || 'unknown',
+          user_role: userProfile?.role || 'doctor',
+          action: 'analysis_edited'
+        });
+
+        const { error: auditError } = await supabase.from('audit_logs').insert({
+          consultation_id: consultationId,
+          user_id: user.id,
+          user_email: user.email || userProfile?.email || 'unknown',
+          user_role: userProfile?.role || 'doctor',
+          action: 'consultation_edited',
+          action_details: `Dr. ${doctorName} reviewed and modified the treatment plan`,
+          field_changed: 'ai_analysis',
+          old_value: oldSummary,
+          new_value: newSummary
+        });
+
+        if (auditError) {
+          console.error('!!! AUDIT LOG INSERT FAILED !!!', auditError);
+          console.error('Audit error details:', JSON.stringify(auditError, null, 2));
+        } else {
+          console.log('✅ Audit log created successfully');
+        }
+      } catch (auditException) {
+        console.error('Exception while creating audit log:', auditException);
+      }
+    } else {
+      console.warn('Cannot create audit log - missing user or oldRecord', { 
+        hasUser: !!user, 
+        hasOldRecord: !!oldRecord 
       });
     }
 

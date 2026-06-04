@@ -14,7 +14,7 @@ import { Modal } from '@/components/ui/modal';
 import { Loader2, Activity } from 'lucide-react';
 import { useAutomaticReminders } from '@/hooks/useAutomaticReminders';
 import { AlertDialog } from '@/components/ui/alert-dialog';
-import type { PatientData, ClinicalResponse, ConsultationRecord, Doctor } from '@/lib/types';
+import type { PatientData, ClinicalResponse, ConsultationRecord, Doctor, AuditLog } from '@/lib/types';
 import { 
   generateTreatmentPlan, 
   fetchPatientConsultations,
@@ -22,7 +22,8 @@ import {
   fetchDoctorConsultations,
   updateConsultationAnalysis,
   fetchAvailableDoctors,
-  createConsultationSchedule
+  createConsultationSchedule,
+  getAuditTrail
 } from '@/app/server/actions';
 
 type DashboardView = 'loading' | 'auth' | 'doctor' | 'patient' | 'analysis_result';
@@ -70,6 +71,9 @@ export default function Home() {
   
   // Current consultation ID (for freshly generated analysis)
   const [currentConsultationId, setCurrentConsultationId] = useState<string | null>(null);
+  
+  // Audit logs for selected consultation
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   useEffect(() => {
     // 1. Check active session on load
@@ -99,17 +103,19 @@ export default function Home() {
 
   // Logic to fetch role from DB and switch views
   const handleUserAuthenticated = async (authUser: any) => {
-    setUser(authUser);
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, full_name')
         .eq('id', authUser.id)
         .single();
 
       if (error) throw error;
 
+      // Store user with full_name
+      setUser({ ...authUser, full_name: data.full_name });
       setUserRole(data.role);
+      
       if (data.role === 'doctor') {
         setView('doctor');
         // Load consultations for doctors
@@ -122,6 +128,7 @@ export default function Home() {
     } catch (error) {
       console.error('Error fetching role:', error);
       // Fallback if role is missing
+      setUser(authUser);
       setUserRole('patient');
       setView('patient'); 
     }
@@ -137,9 +144,21 @@ export default function Home() {
     setDoctorConsultations(records);
   };
 
-  const handleViewConsultation = (consultation: ConsultationRecord) => {
+  const handleViewConsultation = async (consultation: ConsultationRecord) => {
+    // Close modal first to reset state
+    setViewConsultationModal(false);
+    
+    // Load audit trail
+    const logs = await getAuditTrail(consultation.id);
+    
+    // Set states
+    setAuditLogs(logs);
     setSelectedConsultation(consultation);
-    setViewConsultationModal(true);
+    
+    // Open modal after state updates
+    queueMicrotask(() => {
+      setViewConsultationModal(true);
+    });
   };
 
   const handleShowPayment = async (consultationId: string) => {
@@ -235,6 +254,28 @@ export default function Home() {
     } 
   };
 
+  const handleApproveConsultation = async (consultationId: string) => {
+    // Quick approve without editing - just mark as completed
+    const success = await updateConsultationStatus(consultationId, 'completed');
+    
+    if (success) {
+      // Reload doctor consultations
+      await loadDoctorConsultations();
+      
+      setAlertDialog({ 
+        isOpen: true, 
+        type: 'success', 
+        message: 'Analysis approved and marked as complete!' 
+      });
+    } else {
+      setAlertDialog({ 
+        isOpen: true, 
+        type: 'error', 
+        message: 'Failed to approve consultation. Please try again.' 
+      });
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setView('auth');
@@ -244,7 +285,7 @@ export default function Home() {
   const handlePatientFormSubmit = async () => {
     setIsAnalyzing(true);
     try {
-      const result = await generateTreatmentPlan(patientData, user.id, user.email);
+      const result = await generateTreatmentPlan(patientData, user.id, user.full_name || user.email);
       
       if (result) {
         setShowPatientForm(false);
@@ -255,7 +296,7 @@ export default function Home() {
         const newConsultation: ConsultationRecord = {
           id: result.consultationId,
           patientId: user.id,
-          patientName: user.email || 'Patient',
+          patientName: user.full_name || user.email || 'Patient',
           timestamp: Date.now(),
           status: 'pending_payment',
           patientData: patientData,
@@ -296,14 +337,15 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-linear-to-br from-slate-50 to-indigo-50">
         <Header 
-          user={{ email: user?.email, role: userRole }} 
+          user={{ email: user?.email, full_name: user?.full_name, role: userRole }} 
           onLogout={handleLogout} 
         />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <DoctorDashboard 
-            doctorName={user?.email || 'Doctor'}
+            doctorName={user?.full_name || user?.email || 'Doctor'}
             consultations={doctorConsultations} // You will connect real data later
             onViewCase={handleViewConsultation} 
+            onApproveCase={handleApproveConsultation}
             onLogout={handleLogout}
           />
         </main>
@@ -311,19 +353,28 @@ export default function Home() {
         {/* Consultation View Modal */}
         <Modal
           isOpen={viewConsultationModal}
-          onClose={() => setViewConsultationModal(false)}
+          onClose={() => {
+            setViewConsultationModal(false);
+            setAuditLogs([]); // Reset audit logs when closing
+          }}
           title="Patient Consultation Review"
           maxWidth="max-w-7xl"
         >
-          {selectedConsultation && (
+          {selectedConsultation && viewConsultationModal && (
             <TreatmentPlan
+              key={`${selectedConsultation.id}-${Date.now()}`}
               data={selectedConsultation.aiAnalysis}
-              onBack={() => setViewConsultationModal(false)}
+              onBack={() => {
+                setViewConsultationModal(false);
+                setAuditLogs([]);
+              }}
               showConsultAction={false}
               consultationPaid={selectedConsultation.status === 'paid'}
               isDialogMode={true}
               isEditable={true}
               onSave={(updatedData) => handleSaveConsultation(selectedConsultation.id, updatedData)}
+              consultation={{ id: selectedConsultation.id, status: selectedConsultation.status }}
+              auditLogs={auditLogs}
             />
           )}
         </Modal>
@@ -335,12 +386,12 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-linear-to-br from-slate-50 to-blue-50">
         <Header 
-          user={{ email: user?.email, role: userRole }} 
+          user={{ email: user?.email, full_name: user?.full_name, role: userRole }} 
           onLogout={handleLogout} 
         />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <PatientDashboard 
-            patientName={user?.email || 'Patient'}
+            patientName={user?.full_name || user?.email || 'Patient'}
             consultations={consultations} 
             onNewCase={() => setShowPatientForm(true)} 
             onViewCase={handleViewConsultation}
@@ -423,7 +474,7 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-linear-to-br from-slate-50 to-blue-50">
         <Header 
-          user={{ email: user?.email, role: userRole }} 
+          user={{ email: user?.email, full_name: user?.full_name, role: userRole }} 
           onLogout={handleLogout} 
         />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

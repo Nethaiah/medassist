@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { ClinicalResponse } from '@/lib/types';
+import React, { useState, useEffect } from 'react';
+import { ClinicalResponse, AuditLog } from '@/lib/types';
 import { RiskBadge } from '@/components/ui/risk-badge';
 import { PhysiologicalChart } from '@/components/ui/physiological-chart';
+import { AuditTrail } from '@/components/ui/audit-trail';
+import { getAuditTrail } from '@/app/server/actions';
 import { AlertTriangle, CheckCircle, Pill, ShieldAlert, FileText, ChevronRight, Activity, ToggleLeft, ToggleRight, ArrowLeft, Stethoscope, X, Edit, Save } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -16,6 +18,7 @@ interface Props {
   isEditable?: boolean; // New prop for doctor editing
   onSave?: (updatedData: ClinicalResponse) => void; // Callback when saving edits
   consultation?: { id: string; status?: string }; // For audit trail and status check
+  auditLogs?: AuditLog[]; // Audit logs for medical compliance
 }
 
 export const TreatmentPlan: React.FC<Props> = ({ 
@@ -27,13 +30,26 @@ export const TreatmentPlan: React.FC<Props> = ({
   isDialogMode = false,
   isEditable = false,
   onSave,
-  consultation
+  consultation,
+  auditLogs = []
 }) => {
   const supabase = createClient();
   const [patientMode, setPatientMode] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editedData, setEditedData] = useState<ClinicalResponse>(data);
   const [userRole, setUserRole] = useState<'patient' | 'doctor' | null>(null);
+  const [internalAuditLogs, setInternalAuditLogs] = useState<AuditLog[]>(auditLogs || []);
+
+  // Fetch audit logs internally when consultation is available
+  useEffect(() => {
+    const fetchAuditLogs = async () => {
+      if (consultation?.id) {
+        const logs = await getAuditTrail(consultation.id);
+        setInternalAuditLogs(logs);
+      }
+    };
+    fetchAuditLogs();
+  }, [consultation?.id]);
 
   // Fetch user role on mount
   React.useEffect(() => {
@@ -111,8 +127,6 @@ export const TreatmentPlan: React.FC<Props> = ({
                   </button>
                 </div>
                 ) : (
-                  // Debug: log the status to see what's happening
-                  console.log('Consultation status:', consultation?.status),
                   consultation?.status === 'completed' ? (
                     <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg border border-green-200">
                       <CheckCircle className="w-4 h-4" />
@@ -182,7 +196,7 @@ export const TreatmentPlan: React.FC<Props> = ({
                 onClick={onConsult}
                 className="whitespace-nowrap px-6 py-3 bg-white text-indigo-700 font-bold rounded-lg shadow-md hover:bg-blue-50 transition transform hover:scale-105"
               >
-                Consult Doctor ($50)
+                Consult Doctor (P500)
               </button>
            </div>
         )}
@@ -636,6 +650,13 @@ export const TreatmentPlan: React.FC<Props> = ({
           )}
         </div>
       </div>
+
+      {/* Audit Trail Section - Medical Compliance (Patient View Only) */}
+      {userRole === 'patient' && internalAuditLogs.length > 0 && (
+        <div className="mt-6">
+          <AuditTrail logs={internalAuditLogs} />
+        </div>
+      )}
     </div>
   );
 };

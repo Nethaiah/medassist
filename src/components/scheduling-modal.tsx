@@ -2,7 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/modal';
-import { Calendar, Clock, User, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import { 
+  Calendar, 
+  Clock, 
+  User, 
+  FileText, 
+  CheckCircle2, 
+  AlertCircle,
+  Stethoscope,
+  ChevronDown
+} from 'lucide-react';
 import type { Doctor } from '@/lib/types';
 
 interface Props {
@@ -19,7 +28,6 @@ export const SchedulingModal: React.FC<Props> = ({ isOpen, onClose, onSchedule, 
   const [notes, setNotes] = useState('');
   const [showError, setShowError] = useState(false);
 
-  // Reset form when modal closes
   useEffect(() => {
     if (!isOpen) {
       setSelectedDoctor('');
@@ -30,14 +38,12 @@ export const SchedulingModal: React.FC<Props> = ({ isOpen, onClose, onSchedule, 
     }
   }, [isOpen]);
 
-  // Get minimum date (tomorrow)
   const getMinDate = () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     return tomorrow.toISOString().split('T')[0];
   };
 
-  // Generate time slots (9 AM to 5 PM, 30-min intervals)
   const timeSlots = [];
   for (let hour = 9; hour < 17; hour++) {
     for (let minute of [0, 30]) {
@@ -62,181 +68,164 @@ export const SchedulingModal: React.FC<Props> = ({ isOpen, onClose, onSchedule, 
   const selectedDoctorInfo = doctors.find(d => d.id === selectedDoctor);
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Schedule Consultation" maxWidth="max-w-2xl">
-      <form onSubmit={handleSubmit} className="p-8 space-y-6">
+    <Modal isOpen={isOpen} onClose={onClose} title="Schedule Consultation" maxWidth="max-w-xl">
+      <form onSubmit={handleSubmit} className="overflow-hidden">
         
-        {/* Error Alert */}
-        {showError && (
-          <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 flex items-start gap-3 animate-in slide-in-from-top">
-            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-red-800">Missing Required Fields</p>
-              <p className="text-sm text-red-600 mt-1">Please fill in all required fields before continuing.</p>
-            </div>
+        {/* Header Section */}
+        <div className="bg-slate-50 border-b border-slate-200 p-4 flex items-center gap-3">
+          <div className="bg-linear-to-br from-indigo-600 to-purple-600 p-2.5 rounded-lg shadow-md">
+            <Calendar className="text-white w-5 h-5" />
           </div>
-        )}
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">New Appointment</h2>
+            <p className="text-xs text-slate-500">Select a provider and time slot</p>
+          </div>
+        </div>
 
-        {/* Doctor Selection */}
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-            Select Doctor
-          </label>
-          <div className="relative">
-            <select
-              value={selectedDoctor}
-              onChange={(e) => setSelectedDoctor(e.target.value)}
-              className="w-full px-4 py-3.5 border-2 border-slate-200 rounded-xl 
-                       focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 
-                       transition-all duration-200 bg-white hover:border-slate-300
-                       text-slate-800 font-medium appearance-none cursor-pointer"
-              required
-            >
-              <option value="" className="text-slate-400">Choose a doctor...</option>
-              {doctors.map(doctor => (
-                <option key={doctor.id} value={doctor.id} className="text-slate-800">
-                  Dr. {doctor.fullName}
-                </option>
-              ))}
-            </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-              <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-          {selectedDoctorInfo && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg border border-blue-100">
-              <CheckCircle2 className="w-4 h-4 text-blue-600" />
-              <p className="text-sm text-blue-700 font-medium">{selectedDoctorInfo.email}</p>
+        <div className="p-5 space-y-5">
+          {/* Error Alert */}
+          {showError && (
+            <div className="bg-red-50 border border-red-100 rounded-lg p-3 flex items-start gap-2 animate-in slide-in-from-top">
+              <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-bold text-red-800">Missing Required Fields</p>
+                <p className="text-xs text-red-600">Please complete the form to continue.</p>
+              </div>
             </div>
           )}
-        </div>
 
-        {/* Date Selection */}
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-            Consultation Date
-          </label>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            min={getMinDate()}
-            className="w-full px-4 py-3.5 border-2 border-slate-200 rounded-xl 
-                     focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 
-                     transition-all duration-200 bg-white hover:border-slate-300
-                     text-slate-800 font-medium cursor-pointer"
-            required
-          />
-        </div>
-
-        {/* Time Selection */}
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-            Consultation Time
-          </label>
-          <div className="relative">
-            <select
-              value={selectedTime}
-              onChange={(e) => setSelectedTime(e.target.value)}
-              className="w-full px-4 py-3.5 border-2 border-slate-200 rounded-xl 
-                       focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 
-                       transition-all duration-200 bg-white hover:border-slate-300
-                       text-slate-800 font-medium appearance-none cursor-pointer"
-              required
-            >
-              <option value="" className="text-slate-400">Choose a time...</option>
-              {timeSlots.map(time => (
-                <option key={time} value={time} className="text-slate-800">{time}</option>
-              ))}
-            </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-              <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 rounded-lg border border-purple-100">
-            <Clock className="w-4 h-4 text-purple-600" />
-            <p className="text-sm text-purple-700 font-medium">Duration: 30 minutes</p>
-          </div>
-        </div>
-
-        {/* Notes */}
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-            Additional Notes <span className="text-slate-400 font-normal">(Optional)</span>
-          </label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={4}
-            className="w-full px-4 py-3.5 border-2 border-slate-200 rounded-xl 
-                     focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 
-                     transition-all duration-200 bg-white hover:border-slate-300
-                     text-slate-800 resize-none"
-            placeholder="Any specific concerns or questions for the doctor..."
-          />
-        </div>
-
-        {/* Summary */}
-        {selectedDoctor && selectedDate && selectedTime && (
-          <div className="relative overflow-hidden bg-linear-to-br from-blue-50 via-indigo-50 to-purple-50 
-                        border-2 border-blue-200 rounded-2xl p-6 shadow-lg animate-in fade-in slide-in-from-bottom">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-linear-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl" />
+          {/* Doctor Selection */}
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+              <Stethoscope className="w-3.5 h-3.5 text-blue-500" /> Specialist
+            </label>
             <div className="relative">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-linear-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
-                  <CheckCircle2 className="w-5 h-5 text-white" />
-                </div>
-                <h4 className="font-bold text-lg bg-linear-to-r from-blue-700 to-indigo-700 bg-clip-text text-transparent">
-                  Consultation Summary
-                </h4>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white/60 backdrop-blur-sm rounded-lg p-3 border border-blue-100">
-                  <p className="text-xs font-semibold text-blue-600 mb-1">Doctor</p>
-                  <p className="text-sm font-bold text-slate-800">Dr. {selectedDoctorInfo?.fullName}</p>
-                </div>
-                <div className="bg-white/60 backdrop-blur-sm rounded-lg p-3 border border-emerald-100">
-                  <p className="text-xs font-semibold text-emerald-600 mb-1">Date</p>
-                  <p className="text-sm font-bold text-slate-800">{new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
-                </div>
-                <div className="bg-white/60 backdrop-blur-sm rounded-lg p-3 border border-purple-100">
-                  <p className="text-xs font-semibold text-purple-600 mb-1">Time</p>
-                  <p className="text-sm font-bold text-slate-800">{selectedTime}</p>
-                </div>
-                <div className="bg-white/60 backdrop-blur-sm rounded-lg p-3 border border-pink-100">
-                  <p className="text-xs font-semibold text-pink-600 mb-1">Duration</p>
-                  <p className="text-sm font-bold text-slate-800">30 minutes</p>
-                </div>
+              <select
+                value={selectedDoctor}
+                onChange={(e) => setSelectedDoctor(e.target.value)}
+                className="w-full pl-3 pr-10 py-2 border border-slate-300 rounded-lg 
+                         focus:ring-2 focus:ring-blue-500 focus:border-transparent 
+                         bg-white text-sm text-slate-800 font-medium appearance-none cursor-pointer
+                         transition-all"
+                required
+              >
+                <option value="" className="text-slate-400">Select Doctor...</option>
+                {doctors.map(doctor => (
+                  <option key={doctor.id} value={doctor.id}>
+                    Dr. {doctor.fullName}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+            {selectedDoctorInfo && (
+              <p className="text-xs text-blue-600 pl-1 pt-1 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> Verified Specialist
+              </p>
+            )}
+          </div>
+
+          <hr className="border-slate-100" />
+
+          {/* Date & Time Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                <Calendar className="w-3.5 h-3.5 text-emerald-500" /> Date
+              </label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                min={getMinDate()}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg 
+                         focus:ring-2 focus:ring-blue-500 focus:border-transparent 
+                         bg-white text-sm text-slate-800 font-medium cursor-pointer transition-all"
+                required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                <Clock className="w-3.5 h-3.5 text-purple-500" /> Time
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedTime}
+                  onChange={(e) => setSelectedTime(e.target.value)}
+                  className="w-full pl-3 pr-10 py-2 border border-slate-300 rounded-lg 
+                           focus:ring-2 focus:ring-blue-500 focus:border-transparent 
+                           bg-white text-sm text-slate-800 font-medium appearance-none cursor-pointer transition-all"
+                  required
+                >
+                  <option value="">Select...</option>
+                  {timeSlots.map(time => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               </div>
             </div>
           </div>
-        )}
 
-        {/* Buttons */}
-        <div className="flex gap-4 pt-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 px-6 py-3.5 border-2 border-slate-300 rounded-xl 
-                     text-slate-700 font-semibold hover:bg-slate-50 hover:border-slate-400
-                     transition-all duration-200 active:scale-[0.98]"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="flex-1 px-6 py-3.5 bg-linear-to-r from-blue-600 to-indigo-600 
-                     text-white font-semibold rounded-xl 
-                     hover:from-blue-700 hover:to-indigo-700 
-                     shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40
-                     transition-all duration-200 active:scale-[0.98]
-                     disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Continue to Payment
-          </button>
+          {/* Notes */}
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+              <FileText className="w-3.5 h-3.5 text-indigo-500" /> Notes
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg 
+                       focus:ring-2 focus:ring-blue-500 focus:border-transparent 
+                       bg-white text-sm text-slate-800 resize-none min-h-[80px]
+                       placeholder:text-slate-400 transition-all"
+              placeholder="Reason for consultation..."
+            />
+          </div>
+
+          {/* Compact Summary Card */}
+          {selectedDoctor && selectedDate && selectedTime && (
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 animate-in fade-in slide-in-from-bottom duration-300">
+              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Booking Summary</h4>
+              <div className="grid grid-cols-2 gap-y-3 gap-x-4">
+                <div>
+                  <p className="text-[10px] text-slate-400 font-semibold uppercase">Specialist</p>
+                  <p className="text-sm font-bold text-slate-700 truncate">Dr. {selectedDoctorInfo?.fullName}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-400 font-semibold uppercase">Schedule</p>
+                  <p className="text-sm font-bold text-slate-700">
+                    {new Date(selectedDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} • {selectedTime}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-3 border border-slate-200 rounded-lg 
+                       text-sm text-slate-600 font-semibold hover:bg-slate-50 hover:text-slate-800
+                       transition-all active:scale-[0.98]"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-3 bg-linear-to-r from-blue-600 to-indigo-600 
+                       text-white text-sm font-semibold rounded-lg 
+                       hover:from-blue-700 hover:to-indigo-700 
+                       shadow-md hover:shadow-lg
+                       transition-all active:scale-[0.98]
+                       disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Confirm Booking
+            </button>
+          </div>
         </div>
       </form>
     </Modal>
